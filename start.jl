@@ -17,6 +17,7 @@ runtime = Ref(0)
 context = Ref(0)
 result = Ref(0)
 jsref = Ref(0)
+resultJSString = Ref(0)
 
 ccall( (:JsCreateRuntime, cc), JsErrorCode, (Int32, Ptr{Int64}, Ptr{Int64}), 0, C_NULL, runtime)
 print("got runtime=$runtime\n")
@@ -34,6 +35,11 @@ print("errorCode = $errorCode\n")
 #     _Out_ JsValueRef *result);
 errorCode = ccall( (:JsRunScript, cc), JsErrorCode, (Cwstring, Ptr{Int64}, Cwstring, Ptr{Int64}), "(()=>{return \'Hello world!\';})()", deref(context), "", result)
 print("errorCode = $errorCode\n")
+
+
+errorCode = ccall( (:JsConvertValueToString, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), deref(result), resultJSString)
+print("errorCode = $errorCode\n")
+print("resultJSString = $resultJSString\n")
 
 #=
 jsref = Ptr{Int64}(0)
