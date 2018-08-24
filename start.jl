@@ -96,6 +96,14 @@ function JsCreateObject()
 	return object
 end
 
+# julia> toString(JsCreateString("no unicode support"))
+# "no unicode support"
+function JsCreateString(str::AbstractString)
+	val = ChakraValue()
+	ccall( (:JsCreateString, cc), JsErrorCode, (Cstring, Csize_t, Ptr{Int64}), str, length(str), val.ref)
+	return val
+end
+
 runtime = ChakraRuntime()
 context = ChakraContext(runtime)
 setCurrent(context)
