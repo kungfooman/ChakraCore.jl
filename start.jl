@@ -112,6 +112,8 @@ function JsCreateString(str::AbstractString)
 	return val
 end
 
+
+
 # 
 #function JsCreateNamedFunction(str::AbstractString)
 #	val = ChakraValue()
@@ -153,6 +155,24 @@ c_callback_text = @cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{I
 str_testfunc = JsCreateString("testfunc")
 func = ChakraValue()
 ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), deref(str_testfunc.ref), c_callback_text, C_NULL, func.ref)
+
+
+
+# JsSetProperty(JsValueRef object, JsPropertyIdRef property, JsValueRef value, bool useStrictRules)
+
+function JsSetProperty(object, property, value, useStrictRules)::JsErrorCode
+	ccall( (:JsSetProperty, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Bool), object, property, value, useStrictRules)
+end
+
+JsSetProperty(
+	deref(JsGetGlobalObject().ref),
+	deref(JsPropertyId("somefunc").ref),
+	deref(func.ref),
+	true
+)
+
+# julia> runScript(context, "somefunc()")
+# straight outta callback_test
 
 print("func=$func\n")
 
