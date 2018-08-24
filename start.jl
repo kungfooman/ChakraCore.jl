@@ -96,6 +96,14 @@ function JsCreateObject()
 	return object
 end
 
+# julia> toString(JsGetGlobalObject())
+# "[object global]"
+function JsGetGlobalObject()
+	val = ChakraValue()
+	ccall( (:JsGetGlobalObject, cc), JsErrorCode, (Ptr{Int64},), val.ref)
+	return val
+end
+
 # julia> toString(JsCreateString("no unicode support"))
 # "no unicode support"
 function JsCreateString(str::AbstractString)
