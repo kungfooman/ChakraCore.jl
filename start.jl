@@ -30,12 +30,6 @@ const cc = "C:\\Julia\\bin\\ChakraCore.dll"
 const JsErrorCode = Int32
 const JsRuntimeAttributeNone = Int32(0)
 
-
-runtime = Ref(0)
-context = Ref(0)
-result = Ref(0)
-jsref = Ref(0)
-
 struct ChakraRuntime
 	ref::Ref{Int64}
 	function ChakraRuntime()
@@ -43,10 +37,6 @@ struct ChakraRuntime
 		ccall( (:JsCreateRuntime, cc), JsErrorCode, (Int32, Ptr{Int64}, Ptr{Int64}), 0, C_NULL, this.ref)
 		return this
 	end
-end
-
-function createContext(runtime::ChakraRuntime)
-	context = ChakraContext(runtime)
 end
 
 struct ChakraContext
@@ -58,42 +48,42 @@ struct ChakraContext
 	end
 end
 
+struct ChakraValue
+	ref::Ref{Int64}
+	function ChakraValue()
+		return new(Ref(0))
+	end
+end
+
+function setCurrent(context::ChakraContext)::Bool
+	value = ChakraValue()
+	errorCode = ccall( (:JsSetCurrentContext, cc), JsErrorCode, (Ptr{Int64},), deref(context.ref))
+end
+
+function runScript(context::ChakraContext, code::AbstractString)::ChakraValue
+	result = ChakraValue()
+	errorCode = ccall( (:JsRunScript, cc), JsErrorCode, (Cwstring, Ptr{Int64}, Cwstring, Ptr{Int64}), code, deref(context.ref), "", result.ref)
+	return result
+end
+
+function toString(value::ChakraValue)
+	resultJSString = Ref(0)
+	errorCode = ccall( (:JsConvertValueToString, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), deref(value.ref), resultJSString)
+	#print("errorCode = $errorCode\n")
+	#print("resultJSString = $resultJSString\n")
+	resultWC = Ref{Cwstring}()
+	stringLength = Ref{Csize_t}(0)
+	errorCode = ccall( (:JsStringToPointer, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Csize_t}), deref(resultJSString), pointer(resultWC), stringLength)
+	resultString = Base.unsafe_string(resultWC.x)
+	return resultString
+end
+
 runtime_ = ChakraRuntime()
 context_ = ChakraContext(runtime_)
-
-ccall( (:JsCreateRuntime, cc), JsErrorCode, (Int32, Ptr{Int64}, Ptr{Int64}), 0, C_NULL, runtime)
-print("got runtime=$runtime\n")
-
-ccall( (:JsCreateContext, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), deref(runtime), context)
-print("got context $context\n")
-
-errorCode = ccall( (:JsSetCurrentContext, cc), JsErrorCode, (Ptr{Int64},), deref(context))
-print("errorCode = $errorCode\n")
-
-# JsRunScript(
-#     _In_z_ const wchar_t *script,
-#     _In_ JsSourceContext sourceContext,
-#     _In_z_ const wchar_t *sourceUrl,
-#     _Out_ JsValueRef *result);
-errorCode = ccall( (:JsRunScript, cc), JsErrorCode, (Cwstring, Ptr{Int64}, Cwstring, Ptr{Int64}), "(()=>{return \'→asd\';})()", deref(context), "", result)
-print("errorCode = $errorCode\n")
-
-resultJSString = Ref(0)
-errorCode = ccall( (:JsConvertValueToString, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), deref(result), resultJSString)
-print("errorCode = $errorCode\n")
-print("resultJSString = $resultJSString\n")
-
-#const wchar_t *resultWC;
-#size_t stringLength;
-#JsStringToPointer(resultJSString, &resultWC, &stringLength);
-#resultWC = Ref{Cwstring}()
-resultWC = Ref{Cwstring}()
-stringLength = Ref{Csize_t}(0)
-errorCode = ccall( (:JsStringToPointer, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Csize_t}), deref(resultJSString), pointer(resultWC), stringLength)
-resultString = Base.unsafe_string(resultWC.x)
-print("resultWC = $resultWC\n")
-print("stringLength = $stringLength\n")
-print("resultString = $resultString\n")
+setCurrent(context_)
+result_ = runScript(context_, "(()=>{return \'→asd\';})()")
+resultString_ = toString(result_)
+print("resultString_ = $resultString_\n")
 
 #=
 jsref = Ptr{Int64}(0)
