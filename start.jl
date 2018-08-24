@@ -36,6 +36,31 @@ context = Ref(0)
 result = Ref(0)
 jsref = Ref(0)
 
+struct ChakraRuntime
+	ref::Ref{Int64}
+	function ChakraRuntime()
+		this = new(Ref(0))
+		ccall( (:JsCreateRuntime, cc), JsErrorCode, (Int32, Ptr{Int64}, Ptr{Int64}), 0, C_NULL, this.ref)
+		return this
+	end
+end
+
+function createContext(runtime::ChakraRuntime)
+	context = ChakraContext(runtime)
+end
+
+struct ChakraContext
+	ref::Ref{Int64}
+	function ChakraContext(runtime::ChakraRuntime)
+		this = new(Ref(0))
+		ccall( (:JsCreateContext, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), deref(runtime.ref), this.ref)
+		return this
+	end
+end
+
+runtime_ = ChakraRuntime()
+context_ = ChakraContext(runtime_)
+
 ccall( (:JsCreateRuntime, cc), JsErrorCode, (Int32, Ptr{Int64}, Ptr{Int64}), 0, C_NULL, runtime)
 print("got runtime=$runtime\n")
 
