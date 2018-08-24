@@ -104,12 +104,52 @@ function JsCreateString(str::AbstractString)
 	return val
 end
 
+# 
+#function JsCreateNamedFunction(str::AbstractString)
+#	val = ChakraValue()
+# JsCreateNamedFunction(nameVar, callback, nullptr, functionVar)
+#	ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Cstring, Csize_t, Ptr{Int64}), str, length(str), val.ref)
+#	return val
+#end
+
 runtime = ChakraRuntime()
 context = ChakraContext(runtime)
 setCurrent(context)
 result = runScript(context, "(()=>{return \'→asd\';})()")
 resultString = toString(result)
 print("resultString = $resultString\n")
+
+# JsValueRef __stdcall WScriptJsrt::EchoCallback(JsValueRef callee, bool isConstructCall, JsValueRef *arguments, unsigned short argumentCount, void *callbackState)
+function callback_test(callee::Ptr{Int64}, isConstructCall::Bool, arguments::Ptr{Int64}, argumentCount::UInt16, callbackState::Ptr{Int64})::Ptr{Int64}
+	#log(console, "player_damage $targ $inflictor $attacker $dir $point $damage $dflags $mod")
+	#zero(Int32)
+	print("straight outta callback_test\n")
+	return JsCreateString("yo").ref
+end
+
+#function wrapper_callback_test(targ::Ptr{Int64}, inflictor::Ptr{Int64}, attacker::Ptr{Int64}, dir::Ptr{Float32}, point::Ptr{Float32}, damage::Int32, dflags::Int32, mod::Int32, )::Int32
+#	ret = zero(Int32)
+#	# whatever happens, make sure we return to C what it expects
+#	try
+#		# for some reason cfunction returns always the first compiled one, so make sure we call the latest function here
+#		ret = Int32( Base.invokelatest(callback_player_damage, convert(Entity, targ), convert(Entity, inflictor), convert(Entity, attacker), convert(Vec3, dir), convert(Vec3, point), damage, dflags, mod) )
+#	catch ex
+#		log(console, ex)
+#	end
+#	return ret
+#end
+
+c_callback_text = @cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{Int64}, UInt16, Ptr{Int64}))
+
+# JsCreateNamedFunction(nameVar, callback, nullptr, functionVar)
+str_testfunc = JsCreateString("testfunc")
+func = ChakraValue()
+ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), deref(str_testfunc.ref), c_callback_text, C_NULL, func.ref)
+
+print("func=$func\n")
+
+#ccall(("set_callback_player_damage", lib), Void, (Ptr{Int64}, ), c_callback_player_damage)
+
 
 #=
 jsref = Ptr{Int64}(0)
