@@ -78,12 +78,20 @@ function toString(value::ChakraValue)
 	return resultString
 end
 
-runtime_ = ChakraRuntime()
-context_ = ChakraContext(runtime_)
-setCurrent(context_)
-result_ = runScript(context_, "(()=>{return \'→asd\';})()")
-resultString_ = toString(result_)
-print("resultString_ = $resultString_\n")
+# julia> toString(JsCreateObject())
+# "[object Object]"
+function JsCreateObject()
+	object = ChakraValue()
+	ccall( (:JsCreateObject, cc), JsErrorCode, (Ptr{Int64},), object.ref)
+	return object
+end
+
+runtime = ChakraRuntime()
+context = ChakraContext(runtime)
+setCurrent(context)
+result = runScript(context, "(()=>{return \'→asd\';})()")
+resultString = toString(result)
+print("resultString = $resultString\n")
 
 #=
 jsref = Ptr{Int64}(0)
