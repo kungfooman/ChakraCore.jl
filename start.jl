@@ -55,6 +55,16 @@ struct ChakraValue
 	end
 end
 
+# JsPropertyId("test")
+struct JsPropertyId
+	ref::Ref{Int64}
+	function JsPropertyId(str::AbstractString)
+		this = new(Ref(0))
+		errorCode = ccall( (:JsCreatePropertyId, cc), JsErrorCode, (Cstring, Csize_t, Ptr{Int64}), str, length(str), this.ref)
+		return this
+	end
+end
+
 function setCurrent(context::ChakraContext)::Bool
 	value = ChakraValue()
 	errorCode = ccall( (:JsSetCurrentContext, cc), JsErrorCode, (Ptr{Int64},), deref(context.ref))
