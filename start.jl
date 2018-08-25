@@ -52,39 +52,32 @@ struct ChakraContext
 end
 
 struct ChakraValue
-	ref::Ref{Int64}
-	function ChakraValue()
-		return new(Ref(0))
-	end
-	function ChakraValue(ptr)
-		return new(Ref(0))
-	end
+	ptr::Ptr{Int64}
 end
 
 # JsPropertyId("test")
 struct JsPropertyId
-	ref::Ref{Int64}
+	ptr::Ptr{Int64}
 	function JsPropertyId(str::AbstractString)
-		this = new(Ref(0))
-		errorCode = ccall( (:JsCreatePropertyId, cc), JsErrorCode, (Cstring, Csize_t, Ptr{Int64}), str, length(str), this.ref)
-		return this
+		tmp = Ref{Int64}(0)
+		errorCode = ccall( (:JsCreatePropertyId, cc), JsErrorCode, (Cstring, Csize_t, Ptr{Int64}), str, length(str), tmp)
+		return new(tmp.x)
 	end
 end
 
 function setCurrent(context::ChakraContext)::Bool
-	value = ChakraValue()
 	errorCode = ccall( (:JsSetCurrentContext, cc), JsErrorCode, (Ptr{Int64},), context.ptr)
 end
 
 function runScript(context::ChakraContext, code::AbstractString)::ChakraValue
-	result = ChakraValue()
-	errorCode = ccall( (:JsRunScript, cc), JsErrorCode, (Cwstring, Ptr{Int64}, Cwstring, Ptr{Int64}), code, context.ptr, "", result.ref)
-	return result
+	tmp = Ref{Int64}(0)
+	errorCode = ccall( (:JsRunScript, cc), JsErrorCode, (Cwstring, Ptr{Int64}, Cwstring, Ptr{Int64}), code, context.ptr, "", tmp)
+	return ChakraValue(tmp.x)
 end
 
 function toString(value::ChakraValue)
 	resultJSString = Ref(0)
-	errorCode = ccall( (:JsConvertValueToString, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), deref(value.ref), resultJSString)
+	errorCode = ccall( (:JsConvertValueToString, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), value.ptr, resultJSString)
 	#print("errorCode = $errorCode\n")
 	#print("resultJSString = $resultJSString\n")
 	resultWC = Ref{Cwstring}()
@@ -97,25 +90,25 @@ end
 # julia> toString(JsCreateObject())
 # "[object Object]"
 function JsCreateObject()
-	object = ChakraValue()
-	ccall( (:JsCreateObject, cc), JsErrorCode, (Ptr{Int64},), object.ref)
-	return object
+	tmp = Ref{Int64}(0)
+	ccall( (:JsCreateObject, cc), JsErrorCode, (Ptr{Int64},), tmp)
+	return ChakraValue(tmp.x)
 end
 
 # julia> toString(JsGetGlobalObject())
 # "[object global]"
 function JsGetGlobalObject()
-	val = ChakraValue()
-	ccall( (:JsGetGlobalObject, cc), JsErrorCode, (Ptr{Int64},), val.ref)
-	return val
+	tmp = Ref{Int64}(0)
+	ccall( (:JsGetGlobalObject, cc), JsErrorCode, (Ptr{Int64},), tmp)
+	return ChakraValue(tmp.x)
 end
 
 # julia> toString(JsCreateString("no unicode support"))
 # "no unicode support"
 function JsCreateString(str::AbstractString)
-	val = ChakraValue()
-	ccall( (:JsCreateString, cc), JsErrorCode, (Cstring, Csize_t, Ptr{Int64}), str, length(str), val.ref)
-	return val
+	tmp = Ref{Int64}(0)
+	ccall( (:JsCreateString, cc), JsErrorCode, (Cstring, Csize_t, Ptr{Int64}), str, length(str), tmp)
+	return ChakraValue(tmp.x)
 end
 
 
@@ -143,9 +136,9 @@ function callback_test(callee::Ptr{Int64}, isConstructCall::Bool, arguments::Ptr
 	for i in 0:argumentCount-1
 		push!(args, ChakraValue(arguments + sizeof(Int64) * i))
 	end
-	print("args: ", args)
-	print("straight outta callback_test\n")
-	return Ptr{Int64}(JsCreateString("yo").ref.x)
+	println("args: ", args)
+	println("straight outta callback_test")
+	return JsCreateString("yo").ptr
 end
 
 #function wrapper_callback_test(targ::Ptr{Int64}, inflictor::Ptr{Int64}, attacker::Ptr{Int64}, dir::Ptr{Float32}, point::Ptr{Float32}, damage::Int32, dflags::Int32, mod::Int32, )::Int32
@@ -164,9 +157,10 @@ c_callback_text = cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{In
 
 # JsCreateNamedFunction(nameVar, callback, nullptr, functionVar)
 str_testfunc = JsCreateString("testfunc")
-func = ChakraValue()
-ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), deref(str_testfunc.ref), c_callback_text, C_NULL, func.ref)
 
+tmp = Ref{Int64}(0)
+ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), str_testfunc.ptr, c_callback_text, C_NULL, tmp)
+func = ChakraValue(tmp.x)
 
 
 # JsSetProperty(JsValueRef object, JsPropertyIdRef property, JsValueRef value, bool useStrictRules)
@@ -176,9 +170,9 @@ function JsSetProperty(object, property, value, useStrictRules)::JsErrorCode
 end
 
 JsSetProperty(
-	deref(JsGetGlobalObject().ref),
-	deref(JsPropertyId("somefunc").ref),
-	deref(func.ref),
+	JsGetGlobalObject().ptr,
+	JsPropertyId("somefunc").ptr,
+	func.ptr,
 	true
 )
 
