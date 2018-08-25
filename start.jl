@@ -1,4 +1,6 @@
-Void = Nothing # 1.0 ripped Void for whatever reason
+if !isdefined(:Void)
+	Void = Nothing # 1.0 ripped Void for whatever reason
+end
 
 # https://stackoverflow.com/questions/51994365/convert-refcwstring-to-string/51998210
 function Base.unsafe_string(w::Cwstring)
@@ -21,7 +23,8 @@ Base.pointer(ref::Ref) = Base.unsafe_convert(Ptr{eltype(ref)}, ref)
 # deref is pretty much ref.x, but converting to Ptr{} here aswell
 deref(ref::Ref) = Ptr{Int64}( ref.x )
 
-const cc = "C:\\Julia\\bin\\ChakraCore.dll"
+#const cc = "C:\\Julia\\bin\\ChakraCore.dll"
+const cc = "C:\\Users\\kung\\AppData\\Local\\Julia-0.6.2\\bin\\ChakraCore.dll"
 
 #const ch = "C:\\repos\\ChakraCore\\Build\\VcBuild\\bin\\x64_release\\ch.dll"
 #start_ch() = ccall( (:start_ch, ch), Void, ())
@@ -134,7 +137,7 @@ function callback_test(callee::Ptr{Int64}, isConstructCall::Bool, arguments::Ptr
 	#log(console, "player_damage $targ $inflictor $attacker $dir $point $damage $dflags $mod")
 	#zero(Int32)
 	print("straight outta callback_test\n")
-	return JsCreateString("yo").ref
+	return Ptr{Int64}(JsCreateString("yo").ref.x)
 end
 
 #function wrapper_callback_test(targ::Ptr{Int64}, inflictor::Ptr{Int64}, attacker::Ptr{Int64}, dir::Ptr{Float32}, point::Ptr{Float32}, damage::Int32, dflags::Int32, mod::Int32, )::Int32
@@ -149,7 +152,7 @@ end
 #	return ret
 #end
 
-c_callback_text = @cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{Int64}, UInt16, Ptr{Int64}))
+c_callback_text = cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{Int64}, UInt16, Ptr{Int64}))
 
 # JsCreateNamedFunction(nameVar, callback, nullptr, functionVar)
 str_testfunc = JsCreateString("testfunc")
