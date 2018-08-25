@@ -34,26 +34,29 @@ const JsErrorCode = Int32
 const JsRuntimeAttributeNone = Int32(0)
 
 struct ChakraRuntime
-	ref::Ref{Int64}
+	ptr::Ptr{Int64}
 	function ChakraRuntime()
-		this = new(Ref(0))
-		ccall( (:JsCreateRuntime, cc), JsErrorCode, (Int32, Ptr{Int64}, Ptr{Int64}), 0, C_NULL, this.ref)
-		return this
+		tmp = Ref{Int64}(0)
+		ccall( (:JsCreateRuntime, cc), JsErrorCode, (Int32, Ptr{Int64}, Ptr{Int64}), 0, C_NULL, tmp)
+		return new(tmp.x)
 	end
 end
 
 struct ChakraContext
-	ref::Ref{Int64}
+	ptr::Ptr{Int64}
 	function ChakraContext(runtime::ChakraRuntime)
-		this = new(Ref(0))
-		ccall( (:JsCreateContext, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), deref(runtime.ref), this.ref)
-		return this
+		tmp = Ref{Int64}(0)
+		ccall( (:JsCreateContext, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), runtime.ptr, tmp)
+		return new(tmp.x)
 	end
 end
 
 struct ChakraValue
 	ref::Ref{Int64}
 	function ChakraValue()
+		return new(Ref(0))
+	end
+	function ChakraValue(ptr)
 		return new(Ref(0))
 	end
 end
@@ -70,12 +73,12 @@ end
 
 function setCurrent(context::ChakraContext)::Bool
 	value = ChakraValue()
-	errorCode = ccall( (:JsSetCurrentContext, cc), JsErrorCode, (Ptr{Int64},), deref(context.ref))
+	errorCode = ccall( (:JsSetCurrentContext, cc), JsErrorCode, (Ptr{Int64},), context.ptr)
 end
 
 function runScript(context::ChakraContext, code::AbstractString)::ChakraValue
 	result = ChakraValue()
-	errorCode = ccall( (:JsRunScript, cc), JsErrorCode, (Cwstring, Ptr{Int64}, Cwstring, Ptr{Int64}), code, deref(context.ref), "", result.ref)
+	errorCode = ccall( (:JsRunScript, cc), JsErrorCode, (Cwstring, Ptr{Int64}, Cwstring, Ptr{Int64}), code, context.ptr, "", result.ref)
 	return result
 end
 
@@ -136,6 +139,11 @@ print("resultString = $resultString\n")
 function callback_test(callee::Ptr{Int64}, isConstructCall::Bool, arguments::Ptr{Int64}, argumentCount::UInt16, callbackState::Ptr{Int64})::Ptr{Int64}
 	#log(console, "player_damage $targ $inflictor $attacker $dir $point $damage $dflags $mod")
 	#zero(Int32)
+	args = ChakraValue[]
+	for i in 0:argumentCount-1
+		push!(args, ChakraValue(arguments + sizeof(Int64) * i))
+	end
+	print("args: ", args)
 	print("straight outta callback_test\n")
 	return Ptr{Int64}(JsCreateString("yo").ref.x)
 end
