@@ -143,23 +143,7 @@ end
 # one
 # two
 # "yo"
-function callback_test(callee::Ptr{Int64}, isConstructCall::Bool, arguments::Ptr{Int64}, argumentCount::UInt16, callbackState::Ptr{Int64})::Ptr{Int64}
-	#log(console, "player_damage $targ $inflictor $attacker $dir $point $damage $dflags $mod")
-	#zero(Int32)
-	println("argumentCount=$argumentCount")
-	args = ChakraValue[]
-	# someFunc(1,2,3) will have argumentCount==4, 0==this
-	for i in 0:argumentCount-1
-		push!(args, ChakraValue( unsafe_load(arguments + sizeof(Int64) * i)) )
-	end
-	ret = someFunc(
-		ChakraValue(callee),
-		isConstructCall,
-		args,
-		ChakraValue(callbackState)
-	)
-	return ret.ptr
-end
+
 
 #function wrapper_callback_test(targ::Ptr{Int64}, inflictor::Ptr{Int64}, attacker::Ptr{Int64}, dir::Ptr{Float32}, point::Ptr{Float32}, damage::Int32, dflags::Int32, mod::Int32, )::Int32
 #	ret = zero(Int32)
@@ -172,13 +156,44 @@ end
 #	end
 #	return ret
 #end
+ 
+#get_module(obj) = typeof(obj).name.module
+#ptr = pointer_from_objref(Symbol("eye"))
+#ccall( :jl_get_global, Ptr{Int64}, (Ptr{Int64}, Ptr{Int64}), pointer_from_objref(Base), ptr)
+#STATIC_INLINE jl_function_t *jl_get_function(jl_module_t *m, const char *name) {
+#    return (jl_function_t*)jl_get_global(m, jl_symbol(name));
+#}
+# Base.unsafe_pointer_to_objref(ptr)
+
+dont_garbagecollect_these_functions = []
+
+function native_wrapper_for_func(callee::Ptr{Int64}, isConstructCall::Bool, arguments::Ptr{Int64}, argumentCount::UInt16, callbackState::Ptr{Int64})::Ptr{Int64}
+	#log(console, "player_damage $targ $inflictor $attacker $dir $point $damage $dflags $mod")
+	#zero(Int32)
+	println("argumentCount=$argumentCount")
+	println("callbackState=$callbackState")
+	args = ChakraValue[]
+	# someFunc(1,2,3) will have argumentCount==4, 0==this
+	for i in 0:argumentCount-1
+		push!(args, ChakraValue( unsafe_load(arguments + sizeof(Int64) * i)) )
+	end
+	restoredFunc = Base.unsafe_pointer_to_objref(callbackState)
+	ret = restoredFunc(
+		ChakraValue(callee),
+		isConstructCall,
+		args,
+		ChakraValue(callbackState)
+	)
+	return ret.ptr
+end
 
 function JsCreateNamedFunction(func)::ChakraValue
-	
-	c_callback_text = cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{Int64}, UInt16, Ptr{Int64}))
+	global dont_garbagecollect_these_functions
+	push!(dont_garbagecollect_these_functions, func)
+	c_callback_text = cfunction(native_wrapper_for_func, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{Int64}, UInt16, Ptr{Int64}))
 	str_testfunc = JsCreateString( string(func) ) # e.g. string(eye) == "eye"
 	tmp = Ref{Int64}(0)
-	ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), str_testfunc.ptr, c_callback_text, C_NULL, tmp)
+	ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), str_testfunc.ptr, c_callback_text, Ptr{Int64}(pointer_from_objref(func)), tmp)
 	func = ChakraValue(tmp.x)
 	return func
 end
