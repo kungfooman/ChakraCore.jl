@@ -77,7 +77,9 @@ end
 
 function toString(value::ChakraValue)
 	resultJSString = Ref(0)
+	#println("value.ptr = ", value.ptr)
 	errorCode = ccall( (:JsConvertValueToString, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}), value.ptr, resultJSString)
+	#println("resultJSString = $resultJSString")
 	#print("errorCode = $errorCode\n")
 	#print("resultJSString = $resultJSString\n")
 	resultWC = Ref{Cwstring}()
@@ -128,17 +130,35 @@ result = runScript(context, "(()=>{return \'→asd\';})()")
 resultString = toString(result)
 print("resultString = $resultString\n")
 
-# JsValueRef __stdcall WScriptJsrt::EchoCallback(JsValueRef callee, bool isConstructCall, JsValueRef *arguments, unsigned short argumentCount, void *callbackState)
+function someFunc(callee::ChakraValue, isConstructCall::Bool, arguments::Vector{ChakraValue}, callbackState::ChakraValue)::ChakraValue
+	for arg in arguments
+		println( toString(arg) )
+	end
+	return JsCreateString("yo")
+end
+
+# julia> toString(runScript(context, "somefunc.bind(444)('one','two')"))
+# argumentCount=3
+# 444
+# one
+# two
+# "yo"
 function callback_test(callee::Ptr{Int64}, isConstructCall::Bool, arguments::Ptr{Int64}, argumentCount::UInt16, callbackState::Ptr{Int64})::Ptr{Int64}
 	#log(console, "player_damage $targ $inflictor $attacker $dir $point $damage $dflags $mod")
 	#zero(Int32)
+	println("argumentCount=$argumentCount")
 	args = ChakraValue[]
+	# someFunc(1,2,3) will have argumentCount==4, 0==this
 	for i in 0:argumentCount-1
-		push!(args, ChakraValue(arguments + sizeof(Int64) * i))
+		push!(args, ChakraValue( unsafe_load(arguments + sizeof(Int64) * i)) )
 	end
-	println("args: ", args)
-	println("straight outta callback_test")
-	return JsCreateString("yo").ptr
+	ret = someFunc(
+		ChakraValue(callee),
+		isConstructCall,
+		args,
+		ChakraValue(callbackState)
+	)
+	return ret.ptr
 end
 
 #function wrapper_callback_test(targ::Ptr{Int64}, inflictor::Ptr{Int64}, attacker::Ptr{Int64}, dir::Ptr{Float32}, point::Ptr{Float32}, damage::Int32, dflags::Int32, mod::Int32, )::Int32
@@ -157,6 +177,7 @@ c_callback_text = cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{In
 
 # JsCreateNamedFunction(nameVar, callback, nullptr, functionVar)
 str_testfunc = JsCreateString("testfunc")
+
 
 tmp = Ref{Int64}(0)
 ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), str_testfunc.ptr, c_callback_text, C_NULL, tmp)
