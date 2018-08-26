@@ -173,22 +173,23 @@ end
 #	return ret
 #end
 
-c_callback_text = cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{Int64}, UInt16, Ptr{Int64}))
-
-# JsCreateNamedFunction(nameVar, callback, nullptr, functionVar)
-str_testfunc = JsCreateString("testfunc")
-
-
-tmp = Ref{Int64}(0)
-ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), str_testfunc.ptr, c_callback_text, C_NULL, tmp)
-func = ChakraValue(tmp.x)
-
+function JsCreateNamedFunction(func)::ChakraValue
+	
+	c_callback_text = cfunction(callback_test, Ptr{Int64}, (Ptr{Int64}, Bool, Ptr{Int64}, UInt16, Ptr{Int64}))
+	str_testfunc = JsCreateString( string(func) ) # e.g. string(eye) == "eye"
+	tmp = Ref{Int64}(0)
+	ccall( (:JsCreateNamedFunction, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Ptr{Int64}), str_testfunc.ptr, c_callback_text, C_NULL, tmp)
+	func = ChakraValue(tmp.x)
+	return func
+end
 
 # JsSetProperty(JsValueRef object, JsPropertyIdRef property, JsValueRef value, bool useStrictRules)
 
 function JsSetProperty(object, property, value, useStrictRules)::JsErrorCode
 	ccall( (:JsSetProperty, cc), JsErrorCode, (Ptr{Int64}, Ptr{Int64}, Ptr{Int64}, Bool), object, property, value, useStrictRules)
 end
+
+func = JsCreateNamedFunction(someFunc)
 
 JsSetProperty(
 	JsGetGlobalObject().ptr,
